@@ -1,16 +1,8 @@
-// yt: https://www.youtube.com/watch?v=vXu5GeLP6A8
-// github: https://gist.github.com/BlockmanCodes/1ed5e4b3cd597f02e539049c3473f7b3
-
-
-// const { ethers} = require('ethers');
 import { Contract, JsonRpcProvider, ethers  } from 'ethers';
 const { abi: IUniswapV3PoolABI } = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json')
 const { abi: UniswapV3Factory } = require('@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json')
 const { abi: SwapRouterABI} = require('./SwapRouterAbi.json');
-const { getPoolImmutables, getPoolState } = require('./helper');
-
-
-const ERC20ABI = require('./abi.json');
+const ERC20_ABI = require('./ERC20_ABI.json');
 
 require('dotenv').config()
 const INFURA_URL_TESTNET = process.env.INFURA_URL_TESTNET
@@ -18,8 +10,25 @@ const WALLET_ADDRESS = process.env.WALLET_ADDRESS
 const WALLET_SECRET = process.env.WALLET_SECRET
 
 const provider = new JsonRpcProvider(INFURA_URL_TESTNET)
+const swapRouterAddress = '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E'
 
-async function getPoolAddress(address0, address1) {
+const taylorCoin = {
+    name: "TSwizzle",
+    symbol: "TSW",
+    decimals: 18,
+    address: "0x6ba018638402a84d128e90d9d511f4cd692a5c24",
+    contract: new ethers.Contract("0x6ba018638402a84d128e90d9d511f4cd692a5c24", ERC20_ABI, provider),
+};
+
+const anjaCoin = {
+    name: "AnjaCoin",
+    symbol: "KING",
+    decimals: 18,
+    address: "0x7d1c011Ca250abfA2D01056cAe50052656e73263",
+    contract: new ethers.Contract("0x7d1c011Ca250abfA2D01056cAe50052656e73263", ERC20_ABI, provider),
+}
+
+async function getPoolAddress(firstCoinAddress, secondCoinAddress) {
     const factoryAddress = '0x0227628f3F023bb0B980b67D528571c95c6DaC1c'
 
     const factoryContract = new Contract(
@@ -28,38 +37,20 @@ async function getPoolAddress(address0, address1) {
         provider
     )
 
-    const poolAddress = await factoryContract.getPool(address0, address1, 100) // 100 = 0.1%
+    const poolAddress = await factoryContract.getPool(firstCoinAddress, secondCoinAddress, 100) // 100 = 0.1%
     console.log('poolAddress', poolAddress)
     return poolAddress
 }
 
-
-// const test = new ethers.providers.AlchemyProvider()
-
-const swapRouterAddress = '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E'
-
-const name0 = "TSwizzle"
-const symbol0 = "TSW"
-const decimals0 = 18
-const address0 = '0x6ba018638402a84d128e90d9d511f4cd692a5c24'
-
-const name1 = 'AnjaCoin'
-const symbol1 = 'KING'
-const decimals1 = 18
-const address1 = '0x7d1c011Ca250abfA2D01056cAe50052656e73263'
-
 async function main() {
     // const poolAddress = await getPoolAddress(address0, address1);
-    const poolAddress = "0xbb2f92B093d5Ba9Cca2d41f81C1b5F03C5eF6B82";
-
-    const poolContract = new ethers.Contract(
-        poolAddress,
-        IUniswapV3PoolABI,
-        provider
-    )
-
-    const immutables = await getPoolImmutables(poolContract)
-    const state = await getPoolState(poolContract)
+    // const poolAddress = "0xbb2f92B093d5Ba9Cca2d41f81C1b5F03C5eF6B82";
+    //
+    // const poolContract = new ethers.Contract(
+    //     poolAddress,
+    //     IUniswapV3PoolABI,
+    //     provider
+    // )
 
     const wallet = new ethers.Wallet(WALLET_SECRET)
     const connectedWallet = wallet.connect(provider)
@@ -70,31 +61,11 @@ async function main() {
         provider
     )
 
-    // 0.001
-    // const inputAmount = 0.001
-    // // .001 => 1 000 000 000 000 000
-    // const amountIn = ethers.utils.parseUnits(
-    //     inputAmount.toString(),
-    //     decimals0
-    // )
-
-    const amountIn = BigInt("100000000000000000000");
-
+    const amountIn = (10n**18n) * 10n;
     const approvalAmount = (amountIn * 100n).toString(10);
-    const tokenContract0 = new ethers.Contract(
-        address0,
-        ERC20ABI,
-        provider
-    );
-    const ether = new ethers.Contract(
-        '0xc778417e063141139fce010982780140aa0cd5ab',
-        ERC20ABI,
-        provider
-    );
 
 
-
-    const approvalResponse = await tokenContract0.connect(connectedWallet).approve(
+    const approvalResponse = await taylorCoin.contract.connect(connectedWallet).approve(
         swapRouterAddress,
         approvalAmount
     );
@@ -105,18 +76,17 @@ async function main() {
     console.log(approvalReceit);
 
     const params = {
-        tokenIn: immutables.token0,
-        tokenOut: immutables.token1,
-        fee: immutables.fee,
+        tokenIn: taylorCoin.address,
+        tokenOut: anjaCoin.address,
+        fee: 100n,
         recipient: WALLET_ADDRESS,
-        // deadline: Math.floor(Date.now() / 1000) + (60 * 10),
         amountIn: amountIn,
         amountOutMinimum: 0,
         sqrtPriceLimitX96: 0,
     }
 
     const transaction = await swapRouterContract.connect(connectedWallet).exactInputSingle(params,
-        { gasLimit: BigInt("1000000")});
+        { gasLimit: BigInt(1000000n)});
     console.log(transaction);
     const receipt = await transaction.wait();
     console.log(receipt);
