@@ -5,6 +5,7 @@ const { abi: UniswapV3Factory } = require('@uniswap/v3-core/artifacts/contracts/
 const { abi: SwapRouterABI} = require('./SwapRouterAbi.json');
 const ERC20_ABI = require('./ERC20_ABI.json');
 const { getPoolImmutables, getPoolState } = require('./helper.js')
+const {getPrice} = require("./helper");
 
 require('dotenv').config()
 const INFURA_URL_TESTNET = process.env.INFURA_URL_TESTNET
@@ -33,6 +34,7 @@ const anjaCoin = {
 const wallet = new ethers.Wallet(WALLET_SECRET);
 const swapRouterContract = new ethers.Contract(swapRouterAddress, SwapRouterABI, provider);
 
+// 0x66dc95Ec1b8bFFD7E14D6b0D8aA16F5f68a9B630
 async function getPoolAddress(firstCoinAddress, secondCoinAddress) {
     const factoryAddress = '0x0227628f3F023bb0B980b67D528571c95c6DaC1c'
 
@@ -47,8 +49,8 @@ async function getPoolAddress(firstCoinAddress, secondCoinAddress) {
     return poolAddress
 }
 
-async function ah() {
-    const poolAddress = await getPoolAddress(taylorCoin.address, anjaCoin.address);
+async function getPoolInfo() {
+    const poolAddress = "0x66dc95Ec1b8bFFD7E14D6b0D8aA16F5f68a9B630"
 
     const poolContract = new ethers.Contract(
         poolAddress,
@@ -56,8 +58,27 @@ async function ah() {
         provider
     )
 
-    const immutables = await getPoolImmutables(poolContract)
-    const state = await getPoolState(poolContract)
+    const immutables = await getPoolImmutables(poolContract);
+    console.log("immutables");
+    console.log(immutables);
+    const state = await getPoolState(poolContract);
+    console.log("state");
+    console.log(state);
+
+    const token0 = immutables.token0 === anjaCoin.address ? anjaCoin : taylorCoin;
+    const token1 = token0 === anjaCoin ? taylorCoin : anjaCoin;
+    const prices = await getPrice(state.sqrtPriceX96, token0, token1);
+    if (token0 === anjaCoin) {
+        return {
+            anjaCoinInValueOfTaylorCoin: prices.token0InValueOfToken1,
+            taylorCoinInValueOfAnjaCoin: prices.token1InValueOfToken0,
+        };
+    } else {
+        return {
+            anjaCoinInValueOfTaylorCoin: prices.token1InValueOfToken0,
+            taylorCoinInValueOfAnjaCoin: prices.token0InValueOfToken1,
+        };
+    }
 }
 
 async function swap(inToken, amountIn){
@@ -108,5 +129,6 @@ async function executeSwap(inToken, outToken, amountIn) {
 }
 
 module.exports = {
-    swap
+    swap,
+    getPoolInfo,
 };

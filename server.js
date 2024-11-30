@@ -1,5 +1,5 @@
 const express = require("express");
-const {swap} = require("./uniswapTrader.js");
+const {swap, getPoolInfo} = require("./uniswapTrader.js");
 
 
 const app = express();
@@ -15,6 +15,18 @@ app.post('/swap', async (req, res) => {
     try {
         await swap(inToken, amountIn);
         res.status(200).end();
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            error: error
+        });
+    }
+});
+
+app.get('/poolInfo', async (req, res) => {
+    try {
+        const exchangeRate = await getPoolInfo();
+        res.status(200).json(exchangeRate);
     } catch (error) {
         console.log(error);
         res.status(500).json({
