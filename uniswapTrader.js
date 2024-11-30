@@ -4,6 +4,7 @@ const { abi: IUniswapV3PoolABI } = require('@uniswap/v3-core/artifacts/contracts
 const { abi: UniswapV3Factory } = require('@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json')
 const { abi: SwapRouterABI} = require('./SwapRouterAbi.json');
 const ERC20_ABI = require('./ERC20_ABI.json');
+const { getPoolImmutables, getPoolState } = require('./helper.js')
 
 require('dotenv').config()
 const INFURA_URL_TESTNET = process.env.INFURA_URL_TESTNET
@@ -44,6 +45,19 @@ async function getPoolAddress(firstCoinAddress, secondCoinAddress) {
     const poolAddress = await factoryContract.getPool(firstCoinAddress, secondCoinAddress, 100) // 100 = 0.01%
     console.log('poolAddress', poolAddress)
     return poolAddress
+}
+
+async function ah() {
+    const poolAddress = await getPoolAddress(taylorCoin.address, anjaCoin.address);
+
+    const poolContract = new ethers.Contract(
+        poolAddress,
+        IUniswapV3PoolABI,
+        provider
+    )
+
+    const immutables = await getPoolImmutables(poolContract)
+    const state = await getPoolState(poolContract)
 }
 
 async function swap(inToken, amountIn){
